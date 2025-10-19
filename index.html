@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFTB Bus Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            /* Light Mode (Default) */
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F8FAFC;
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --violet-primary: #7C3AED;
+            --violet-secondary: #A78BFA;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --border-color: #E2E8F0;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        [data-theme="dark"] {
+            /* Dark Mode */
+            --bg-primary: #0F172A;
+            --bg-secondary: #1E293B;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+            --border-color: #334155;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+            transition: var(--transition);
+        }
+        
+        .navbar {
+            background: var(--bg-primary);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            transition: var(--transition);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--violet-primary);
+        }
+        
+        .logo-img {
+            width: 40px;
+            height: 40px;
+            margin-right: 0.5rem;
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+        
+        .logo:hover .logo-img {
+            transform: scale(1.05);
+        }
+        
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: var(--transition);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .theme-toggle:hover {
+            background: var(--violet-primary);
+            color: white;
+            border-color: var(--violet-primary);
+            transform: scale(1.05);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 6rem 1rem 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .header h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--violet-primary);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 2rem;
+            padding: 2.5rem;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            transform: scale(0.95);
+            transition: var(--transition);
+        }
+        
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+        
+        .modal h2 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--violet-primary);
+        }
+        
+        .modal p {
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+        }
+        
+        .modal input {
+            width: 100%;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: var(--transition);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .modal input:focus {
+            outline: none;
+            border-color: var(--violet-primary);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        
+        .btn {
+            background: var(--violet-primary);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: var(--transition);
+            margin: 0.5rem;
+            min-width: 140px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            background: var(--violet-secondary);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--violet-primary);
+            border: 1px solid var(--violet-primary);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--violet-primary);
+            color: white;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+        
+        @media (min-width: 768px) {
+            #map { height: 500px; }
+        }
+        
+        .driver-info {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            align-items: center;
+        }
+        
+        .driver-info div {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .driver-info strong {
+            font-weight: 600;
+            color: var(--violet-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .last-updated {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+        
+        #updateSection {
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .info {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            color: var(--text-primary);
+        }
+        
+        .info p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+        
+        .info strong {
+            color: var(--text-primary);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+            }
+            
+            .container {
+                padding: 5rem 1rem 2rem;
+            }
+            
+            .modal-content {
+                margin: 1rem;
+                padding: 2rem 1.5rem;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .driver-info {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            #map {
+                height: 300px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+        }
+        
+        /* Smooth Scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Leaflet Override for Theme */
+        .leaflet-container {
+            border-radius: 16px !important;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="https://uftb.ac.bd/" class="logo">
+            <img src="uftb.jpg" alt="UFTB Logo" class="logo-img">
+            Bus Tracker
+        </a>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme">🌙</button>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1>Live Bus Location</h1>
+            <p>Track your university bus in real-time with ease</p>
+        </div>
+        
+        <div id="driverInfoSection" class="driver-info" style="display: none;">
+            <div>
+                <strong>Driver:</strong>
+                <span id="driverName">Unknown</span>
+            </div>
+            <div>
+                <strong>Phone for Contact:</strong>
+                <span id="driverPhone">N/A</span>
+            </div>
+            <div class="last-updated">
+                <strong>Last Updated:</strong>
+                <span id="lastUpdated">Never</span>
+            </div>
+        </div>
+        
+        <div id="map"></div>
+        
+        <div id="updateSection" style="text-align: center; display: none;">
+            <button class="btn" onclick="updateLocationAsDriver()">Update My Location</button>
+            <small style="display: block; margin-top: 0.5rem; color: var(--text-secondary);">Auto-updating every 10 seconds...</small>
+        </div>
+        
+        <div class="info" style="display: none;">
+            <p><strong>Instructions:</strong></p>
+            <p>Please Update the Location Frequently and add number of driver or anyone who can give info about the bus.</p>
+            <p>Update your location anytime for real-time tracking only if you are in the bus.</p>
+            <p>Don't update location if you're not in the bus.</p>
+        </div>
+    </div>
+
+    <!-- Boarding Modal -->
+    <div id="boardingModal" class="modal">
+        <div class="modal-content">
+            <h2>Are you boarding on the bus?</h2>
+            <p>Select your role to continue.</p>
+            <div class="btn-group">
+                <button class="btn" onclick="handleBoarding(true)">Yes (I'm inside the bus)</button>
+                <button class="btn btn-secondary" onclick="handleBoarding(false)">No (I'm not inside the bus)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Details Modal -->
+    <div id="driverDetailsModal" class="modal">
+        <div class="modal-content">
+            <h2>Driver Details</h2>
+            <p>Share your info (optional):</p>
+            <input type="text" id="driverNameInput" placeholder="Driver's Name" />
+            <input type="tel" id="driverPhoneInput" placeholder="Driver's Phone Number or Your Phone Number" />
+            <div class="btn-group">
+                <button class="btn" onclick="submitDriverDetails()">Submit & Update Location</button>
+                <button class="btn btn-secondary" onclick="cancelDriverDetails()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+        import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js';
+
+        // Replace with your Firebase config from the console
+        const firebaseConfig = {
+  apiKey: "AIzaSyA4jubsVzMKf47HF1J33FjaxOzqArQuxNI",
+  authDomain: "uftb-bus-tracker.firebaseapp.com",
+  databaseURL: "https://uftb-bus-tracker-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "uftb-bus-tracker",
+  storageBucket: "uftb-bus-tracker.firebasestorage.app",
+  messagingSenderId: "945968638821",
+  appId: "1:945968638821:web:59308139d10f9914dc0f8c",
+  measurementId: "G-MF8LT0LJN4"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Bus data reference
+        const busRef = ref(db, 'uftb-bus');
+
+        let map;
+        let busMarker;
+        let isDriverMode = false;
+        let defaultLat = 24.0667; // UFTB area
+        let defaultLng = 90.2167;
+        let locationInterval;
+
+        // Theme Toggle Function
+        window.toggleTheme = function() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            const toggleBtn = document.querySelector('.theme-toggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            }
+        }
+
+        // Start auto-location updates for driver
+        function startAutoUpdates() {
+            if (locationInterval) clearInterval(locationInterval);
+            locationInterval = setInterval(updateLocationAsDriver, 10000); // Every 10 seconds
+        }
+
+        // Stop auto-location updates
+        function stopAutoUpdates() {
+            if (locationInterval) {
+                clearInterval(locationInterval);
+                locationInterval = null;
+            }
+        }
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([defaultLat, defaultLng], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+
+        // Update map with bus data
+        function updateMapWithData(data) {
+            if (data && data.lat && data.lng) {
+                if (busMarker) {
+                    map.removeLayer(busMarker);
+                }
+                const icon = L.divIcon({
+                    className: 'bus-icon',
+                    html: '🚌',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+                busMarker = L.marker([data.lat, data.lng], { icon: icon }).addTo(map)
+                    .bindPopup(`<b>UFTB Bus</b><br>Driver: ${data.driverName || 'Unknown'}<br>Phone: ${data.driverPhone || 'N/A'}<br>Last Update: ${new Date(data.timestamp).toLocaleString()}`);
+                map.setView([data.lat, data.lng], 15);
+                
+                // Update UI
+                document.getElementById('driverName').textContent = data.driverName || 'Unknown';
+                document.getElementById('driverPhone').textContent = data.driverPhone || 'N/A';
+                document.getElementById('lastUpdated').textContent = new Date(data.timestamp).toLocaleString();
+                document.getElementById('driverInfoSection').style.display = 'grid';
+            } else {
+                // No live data yet
+                if (busMarker) {
+                    map.removeLayer(busMarker);
+                }
+                const noDataIcon = L.divIcon({
+                    className: 'bus-icon',
+                    html: '⏳',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+                busMarker = L.marker([defaultLat, defaultLng], { icon: noDataIcon }).addTo(map)
+                    .bindPopup('<b>UFTB Bus</b><br>Service not started yet. Check back soon.');
+                map.setView([defaultLat, defaultLng], 15);
+                document.getElementById('driverInfoSection').style.display = 'none';
+            }
+        }
+
+        // Listen for real-time updates
+        onValue(busRef, (snapshot) => {
+            const data = snapshot.val();
+            updateMapWithData(data);
+            document.querySelector('.info').style.display = 'block';
+        });
+
+        // Handle boarding choice
+        window.handleBoarding = function(isDriver) {
+            isDriverMode = isDriver;
+            const modal = document.getElementById('boardingModal');
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            if (isDriver) {
+                // Show driver details modal
+                const detailsModal = document.getElementById('driverDetailsModal');
+                detailsModal.style.display = 'flex';
+                setTimeout(() => detailsModal.classList.add('show'), 10);
+                document.getElementById('updateSection').style.display = 'block';
+            } else {
+                // Passenger: Just listen to data
+                document.querySelector('.info').style.display = 'block';
+            }
+        }
+
+        // Submit driver details and get location
+        window.submitDriverDetails = function() {
+            const name = document.getElementById('driverNameInput').value.trim() || null;
+            const phone = document.getElementById('driverPhoneInput').value.trim() || null;
+            
+            // Get location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        // Save to Firebase
+                        set(busRef, {
+                            lat,
+                            lng,
+                            driverName: name,
+                            driverPhone: phone,
+                            timestamp: Date.now()
+                        }).then(() => {
+                            const detailsModal = document.getElementById('driverDetailsModal');
+                            detailsModal.style.display = 'none';
+                            detailsModal.classList.remove('show');
+                            // Start auto-updates after first manual update
+                            startAutoUpdates();
+                            alert('Location and details updated! Auto-updates started (every 10s). Sharing live with passengers.');
+                        });
+                    },
+                    (error) => {
+                        alert(`Error getting location: ${error.message}. Try again.`);
+                    },
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                alert('Geolocation not supported.');
+            }
+        }
+
+        // Update location as driver (for manual or auto updates)
+        window.updateLocationAsDriver = function() {
+            const name = document.getElementById('driverName').textContent;
+            const phone = document.getElementById('driverPhone').textContent;
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        set(busRef, {
+                            lat,
+                            lng,
+                            driverName: name,
+                            driverPhone: phone,
+                            timestamp: Date.now()
+                        }).then(() => {
+                            // No alert for auto-updates to avoid spam
+                            if (!locationInterval) {
+                                alert('Location updated live!');
+                            }
+                        });
+                    },
+                    (error) => {
+                        console.error('Auto-update error:', error);
+                        // Silent fail for auto-updates
+                        if (!locationInterval) {
+                            alert(`Error: ${error.message}`);
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+                );
+            }
+        }
+
+        // Cancel driver details
+        window.cancelDriverDetails = function() {
+            stopAutoUpdates();
+            isDriverMode = false;
+            const detailsModal = document.getElementById('driverDetailsModal');
+            detailsModal.style.display = 'none';
+            detailsModal.classList.remove('show');
+            document.getElementById('updateSection').style.display = 'none';
+            document.querySelector('.info').style.display = 'block';
+        }
+
+        // Show boarding modal on load
+        window.onload = () => {
+            // Load theme first
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            const toggleBtn = document.querySelector('.theme-toggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+            }
+            initMap();
+            const modal = document.getElementById('boardingModal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('show'), 10);
+        };
+
+        // Clean up interval on page unload
+        window.addEventListener('beforeunload', stopAutoUpdates);
+    </script>
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 1rem; text-align: center; margin-top: 2rem;">
+    <div class="container" style="max-width: 1200px; margin: 0 auto;">
+        <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
+            &copy; 2025 UFTB Bus Tracker. Made with ❤️ for the BUS service of UFTB by Abdullah Rafi. 
+            <a href="https://uftb.ac.bd/" style="color: var(--violet-primary); text-decoration: none;">UFTB Official Site</a>
+        </p>
+    </div>
+</footer>
+</body>
+</html>
